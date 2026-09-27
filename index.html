@@ -257,9 +257,11 @@ footer{padding-block:24px 48px;border-top:1px solid var(--line);display:flex;jus
     <form id="wl" novalidate>
       <label for="wl-email" class="lbl" style="color:inherit;flex-basis:100%;margin:0">Email address</label>
       <input id="wl-email" type="email" placeholder="you@example.com" autocomplete="email">
-      <button class="btn" type="submit">Notify me</button>
+      <input id="wl-website" name="website" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <button class="btn" type="submit" id="wl-btn">Notify me</button>
       <span class="formmsg" id="wl-msg" role="status"></span>
     </form>
+    <p class="formmsg" style="grid-column:1/-1;margin:0;opacity:.6">We only use your email for Caw &amp; Effect updates, and we never share it.</p>
   </div>
 
   <footer>
@@ -269,10 +271,23 @@ footer{padding-block:24px 48px;border-top:1px solid var(--line);display:flex;jus
 </div>
 
 <script>
-document.getElementById("wl").addEventListener("submit",e=>{
+// Waitlist: the publishable key can only insert rows (enforced by row-level security in Supabase).
+const WAITLIST_URL="https://ofhzuyprhoeszkrtrhps.supabase.co/rest/v1/waitlist";
+const WAITLIST_KEY="sb_publishable_IL3BEmNk-T9ZnBP8e2JA3w_nLlFzh_p";
+document.getElementById("wl").addEventListener("submit",async e=>{
   e.preventDefault();
-  const v=document.getElementById("wl-email").value.trim(),m=document.getElementById("wl-msg");
-  m.textContent=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)?"Thanks. The waitlist isn't live yet; this page is a preview.":"Enter an email address like name@example.com.";
+  const input=document.getElementById("wl-email"),btn=document.getElementById("wl-btn"),m=document.getElementById("wl-msg");
+  const email=input.value.trim();
+  if(document.getElementById("wl-website").value){m.textContent="You're on the list.";return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254){m.textContent="Enter an email address like name@example.com.";return}
+  btn.disabled=true;m.textContent="Adding you…";
+  try{
+    const res=await fetch(WAITLIST_URL,{method:"POST",headers:{"apikey":WAITLIST_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({email,source:"landing"})});
+    if(res.ok||res.status===409){m.textContent="You're on the list. Watch for one email from Caw & Effect.";input.value=""}
+    else if(res.status===400){m.textContent="That email address doesn't look right. Check it and try again."}
+    else{m.textContent="Something went wrong on our end. Try again in a minute."}
+  }catch{m.textContent="Couldn't reach the server. Check your connection and try again."}
+  finally{btn.disabled=false}
 });
 </script>
 
